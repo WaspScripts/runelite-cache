@@ -35,6 +35,10 @@ jobs:
           echo "CURRENT_MONTH=$(date +'%m')" >> $GITHUB_ENV
           echo "CURRENT_DAY=$(date +'%d')" >> $GITHUB_ENV
 
+      - name: Get commit hash
+        id: commit-hash
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Create git tag
         id: tag
         run: |
