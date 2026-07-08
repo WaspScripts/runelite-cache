@@ -1,40 +1,57 @@
-name: CI
+name: Build and release cache tools
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-
-    permissions:
-      contents: read
-
-    env:
-      GRADLE_OPTS: "-Dfile:encoding=UTF-8"
-
+  release:
+    runs-on: ubuntu-latest
     steps:
-      - name: Cache glslang
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cache/runelite
-          key: ${{ runner.os }}-cache-${{ hashFiles('ci/build.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-cache-
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 21
+          cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
+      - name: Build jar files
+        run: |
+          cd runelite
+          ./gradlew --build-cache :cache:assemble -x test -x javadoc -q
 
-      - name: Build and Test
-        run: ./ci/build.sh
+      - name: Set up Git
+        run: |
+          git config --global user.name "Wasp Bot"
+          git config --global user.email "waspbot@waspscripts.com"
+
+      - name: Get current date
+        id: date
+        run: |
+          echo "CURRENT_YEAR=$(date +'%Y')" >> $GITHUB_ENV
+          echo "CURRENT_MONTH=$(date +'%m')" >> $GITHUB_ENV
+          echo "CURRENT_DAY=$(date +'%d')" >> $GITHUB_ENV
+
+      - name: Create git tag
+        id: tag
+        run: |
+          TAG_NAME="$CURRENT_YEAR.$CURRENT_MONTH.$CURRENT_DAY-$COMMIT_HASH"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Move to staging
+        if: steps.jar-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p staging
+          find runelite -name "cache-*-SNAPSHOT-shaded.jar" -exec mv {} staging/$TAG_NAME.jar \;
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create $TAG_NAME --generate-notes staging/cache-*-SNAPSHOT-shaded.jar
