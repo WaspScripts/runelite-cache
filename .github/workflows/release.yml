@@ -21,7 +21,6 @@ jobs:
 
       - name: Build jar files
         run: |
-          cd runelite
           ./gradlew --build-cache :cache:assemble -x test -x javadoc -q
 
       - name: Set up Git
@@ -48,7 +47,7 @@ jobs:
         if: steps.jar-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p staging
-          find runelite -name "cache-*-SNAPSHOT-shaded.jar" -exec mv {} staging/$TAG_NAME.jar \;
+          find -name "cache-*-SNAPSHOT-shaded.jar" -exec mv {} staging/$TAG_NAME.jar \;
 
       - name: Create GitHub Release
         env:
