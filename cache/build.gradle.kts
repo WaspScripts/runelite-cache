@@ -129,10 +129,6 @@ tasks.processTestResources {
     }
 }
 
-tasks.test {
-    jvmArgs("-Xmx2048m")
-}
-
 // everything from here down is accounting for antlr sources in varying ways
 tasks.named("sourcesJar", Jar::class) {
     dependsOn(tasks.generateGrammarSource)
